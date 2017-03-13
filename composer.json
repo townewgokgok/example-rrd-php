@@ -1,0 +1,7 @@
+{
+    "name": "ken/example-rrd-php",
+    "require": {
+        "php-amqplib/php-amqplib": "^2.6",
+        "symfony/yaml": "^3.2"
+    }
+}

@@ -1,0 +1,10 @@
+amqp:
+  host: rabbitmq.example.com
+  port: 5672
+  user: test
+  pass: ********
+  queue: test.rrd
+rrd:
+  file_path_fmt: ./data/test-%05d.rrd
+  step: 1
+  heartbeat: 2
