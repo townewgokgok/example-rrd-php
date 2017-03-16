@@ -7,35 +7,30 @@ use PhpAmqpLib\Message\AMQPMessage;
 
 $s = [];
 $startTime = 0;
-$queue = [];
 
-function processRequest(int $id) {
-	global $s, $startTime, $queue;
-	$path = sprintf($s->rrd->file_path_fmt, $id);
-	while (0 < count($queue[$id])) {
-		$req = array_shift($queue[$id]);
-		if (!file_exists($path)) {
-			printf("Creating RRD file: %s\n", $path);
-			rrd_create(
-				$path,
-				[
-					'--start', $req->at - 1,
-					'--step', $s->rrd->step,
-					"DS:value1:GAUGE:" . $s->rrd->heartbeat . ":U:U",
-					"DS:value2:GAUGE:" . $s->rrd->heartbeat . ":U:U",
-					"DS:value3:GAUGE:" . $s->rrd->heartbeat . ":U:U",
-					"RRA:AVERAGE:0.5:1:60",
-				]
-			);
-		}
-		$args = $req->values;
-		array_unshift($args, $req->at);
-		printf("Updating RRD file: %s @ %s\n", $path, $req->at);
-		rrd_update($path, $args);
-		$dt = microtime(true) - $startTime;
-		printf("%f [sec]\n", $dt);
+function processRequest($req) {
+	global $s, $startTime;
+	$path = sprintf($s->rrd->file_path_fmt, $req->id);
+	if (!file_exists($path)) {
+		printf("Creating RRD file: %s\n", $path);
+		rrd_create(
+			$path,
+			[
+				'--start', $req->at - 1,
+				'--step', $s->rrd->step,
+				"DS:value1:GAUGE:" . $s->rrd->heartbeat . ":U:U",
+				"DS:value2:GAUGE:" . $s->rrd->heartbeat . ":U:U",
+				"DS:value3:GAUGE:" . $s->rrd->heartbeat . ":U:U",
+				"RRA:AVERAGE:0.5:1:60",
+			]
+		);
 	}
-	unset($queue[$id]);
+	$args = $req->values;
+	array_unshift($args, $req->at);
+	printf("Updating RRD file: %s @ %s\n", $path, $req->at);
+	rrd_update($path, [implode(":", $args)]);
+	$dt = microtime(true) - $startTime;
+	printf("%f [sec]\n", $dt);
 }
 
 function onAmqpMessage(AMQPMessage $msg) {
@@ -43,13 +38,7 @@ function onAmqpMessage(AMQPMessage $msg) {
 	if ($startTime == 0) $startTime = microtime(true);
 	$req = json_decode($msg->body);
 	printf("Received a message %s\n", json_encode($req));
-	if (!isset($queue[$req->id])) {
-		$queue[$req->id] = [$req];
-		processRequest($req->id);
-	}
-	else {
-		$queue[$req->id][] = $req;
-	}
+	processRequest($req);
 }
 
 function main() {
