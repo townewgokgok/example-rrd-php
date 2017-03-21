@@ -4,12 +4,18 @@ require_once 'vendor/autoload.php';
 use Symfony\Component\Yaml\Yaml;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 use PhpAmqpLib\Message\AMQPMessage;
+use PhpAmqpLib\Channel\AMQPChannel;
 
 $s = [];
 $startTime = 0;
+$received = 0;
+$count = 0;
+
+/** @var AMQPChannel */
+$ch = null;
 
 function processRequest($req) {
-	global $s, $startTime;
+	global $s, $startTime, $count, $ch;
 	$path = sprintf($s->rrd->file_path_fmt, $req->id);
 	if (!file_exists($path)) {
 		printf("Creating RRD file: %s\n", $path);
@@ -21,28 +27,38 @@ function processRequest($req) {
 				"DS:value1:GAUGE:" . $s->rrd->heartbeat . ":U:U",
 				"DS:value2:GAUGE:" . $s->rrd->heartbeat . ":U:U",
 				"DS:value3:GAUGE:" . $s->rrd->heartbeat . ":U:U",
-				"RRA:AVERAGE:0.5:1:60",
+				"RRA:AVERAGE:0.5:1:3600",
 			]
 		);
 	}
 	$args = $req->values;
 	array_unshift($args, $req->at);
-	printf("Updating RRD file: %s @ %s\n", $path, $req->at);
-	rrd_update($path, [implode(":", $args)]);
+	// printf("Updating RRD file: %s @ %s\n", $path, $req->at);
+	for ($i=0; $i<60; $i++) {
+		$args[0] = $req->at + $i;
+		rrd_update($path, [implode(":", $args)]);
+	}
+
+	printf("%d: Sending ack id=%s\n", ++$count, $req->message_id);
+	$ch->basic_ack($req->delivery_tag);
+
 	$dt = microtime(true) - $startTime;
-	printf("%f [sec]\n", $dt);
+	printf("%d: %f [sec]\n", $count, $dt);
 }
 
 function onAmqpMessage(AMQPMessage $msg) {
-	global $startTime, $queue;
+	global $startTime, $received, $queue;
 	if ($startTime == 0) $startTime = microtime(true);
 	$req = json_decode($msg->body);
-	printf("Received a message %s\n", json_encode($req));
+	$req->delivery_tag = $msg->delivery_info['delivery_tag'];
+	$props = $msg->get_properties();
+	$req->message_id = $props['message_id'];
+	printf("%d: Received a message id=%s\n", ++$received, $req->message_id);
 	processRequest($req);
 }
 
 function main() {
-	global $s;
+	global $s, $ch;
 	$yamlSrc = file_get_contents("settings.yml");
 	$s = Yaml::parse($yamlSrc, Yaml::PARSE_OBJECT_FOR_MAP);
 
