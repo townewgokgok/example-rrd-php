@@ -6,10 +6,58 @@ use PhpAmqpLib\Connection\AMQPStreamConnection;
 use PhpAmqpLib\Message\AMQPMessage;
 use PhpAmqpLib\Channel\AMQPChannel;
 
-$s = [];
+class SettingsAmqp {
+	/** @var string */
+	public $host;
+	/** @var int */
+	public $port;
+	/** @var string */
+	public $user;
+	/** @var string */
+	public $pass;
+	/** @var string */
+	public $queue;
+}
+
+class SettingsRrd {
+	/** @var string */
+	public $file_path_fmt;
+	/** @var int */
+	public $step;
+	/** @var int */
+	public $heartbeat;
+}
+
+class Settings {
+	/** @var SettingsAmqp */
+	public $amqp;
+	/** @var SettingsRrd */
+	public $rrd;
+}
+
+class RrdRequest {
+	/** @var int */
+	public $id;
+	/** @var int */
+	public $at;
+	/** @var float[] */
+	public $values;
+}
+
+/** @var Settings $s */
+$s = null;
+
+/** @var int */
 $startTime = 0;
+
+/** @var int */
 $received = 0;
+
+/** @var int */
 $count = 0;
+
+/** @var RrdRequest[] */
+$queue = [];
 
 /** @var AMQPChannel */
 $ch = null;
@@ -46,9 +94,10 @@ function processRequest($req) {
 	printf("%d: %f [sec]\n", $count, $dt);
 }
 
-function onAmqpMessage(AMQPMessage $msg) {
+function onReceive(AMQPMessage $msg) {
 	global $startTime, $received, $queue;
 	if ($startTime == 0) $startTime = microtime(true);
+	/** @var RrdRequest $req */
 	$req = json_decode($msg->body);
 	$req->delivery_tag = $msg->delivery_info['delivery_tag'];
 	$props = $msg->get_properties();
@@ -84,7 +133,7 @@ function main() {
 		false,           //no_ack
 		false,           //exclusive
 		false,           //nowait
-		"onAmqpMessage"  //callback
+		"onReceive"      //callback
 	);
 
 	while(count($ch->callbacks)) $ch->wait();
