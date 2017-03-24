@@ -56,14 +56,14 @@ $received = 0;
 /** @var int */
 $count = 0;
 
-/** @var RrdRequest[] */
-$queue = [];
+/** @var AMQPStreamConnection $conn */
+$conn = null;
 
 /** @var AMQPChannel */
 $ch = null;
 
 function processRequest($req) {
-	global $s, $startTime, $count, $ch;
+	global $s, $startTime, $count, $conn, $ch;
 	$path = sprintf($s->rrd->file_path_fmt, $req->id);
 	if (!file_exists($path)) {
 		printf("Creating RRD file: %s\n", $path);
@@ -92,10 +92,15 @@ function processRequest($req) {
 
 	$dt = microtime(true) - $startTime;
 	printf("%d: %f [sec]\n", $count, $dt);
+	if ($count==1200) {
+		$ch->close();
+		$conn->close();
+		exit(0);
+	}
 }
 
 function onReceive(AMQPMessage $msg) {
-	global $startTime, $received, $queue;
+	global $startTime, $received;
 	if ($startTime == 0) $startTime = microtime(true);
 	/** @var RrdRequest $req */
 	$req = json_decode($msg->body);
@@ -107,7 +112,7 @@ function onReceive(AMQPMessage $msg) {
 }
 
 function main() {
-	global $s, $ch;
+	global $s, $conn, $ch;
 	$yamlSrc = file_get_contents("settings.yml");
 	$s = Yaml::parse($yamlSrc, Yaml::PARSE_OBJECT_FOR_MAP);
 
