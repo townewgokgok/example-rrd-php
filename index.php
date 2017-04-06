@@ -92,7 +92,7 @@ function processRequest($req) {
 
 	$dt = microtime(true) - $startTime;
 	printf("%d: %f [sec]\n", $count, $dt);
-	if ($count==1200) {
+	if ($count==6000) {
 		$ch->close();
 		$conn->close();
 		exit(0);

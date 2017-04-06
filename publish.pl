@@ -1,6 +1,7 @@
 #!/usr/bin/env perl
 
 use strict;
+use warnings;
 use YAML::Tiny;
 use JSON;
 use Net::AMQP::RabbitMQ;
@@ -17,7 +18,7 @@ $mq->connect($s->{amqp}->{host}, {
 $mq->channel_open(1);
 $mq->queue_declare(1, $s->{amqp}->{queue}, {durable=>1, auto_delete=>0});
 
-my $maxid = 20;
+my $maxid = 100;
 my $len = 60;
 my $t0 = 1489710600;
 my $msgid = 0;
