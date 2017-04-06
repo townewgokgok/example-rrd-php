@@ -66,7 +66,7 @@ function processRequest($req) {
 	global $s, $startTime, $count, $conn, $ch;
 	$path = sprintf($s->rrd->file_path_fmt, $req->id);
 	if (!file_exists($path)) {
-		printf("Creating RRD file: %s\n", $path);
+		//printf("Creating RRD file: %s\n", $path);
 		rrd_create(
 			$path,
 			[
