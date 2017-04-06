@@ -87,12 +87,14 @@ function processRequest($req) {
 		rrd_update($path, [implode(":", $args)]);
 	}
 
-	printf("%d: Sending ack id=%s\n", ++$count, $req->message_id);
+	$count++;
+	// printf("%d: Sending ack id=%s\n", $count, $req->message_id);
 	$ch->basic_ack($req->delivery_tag);
 
-	$dt = microtime(true) - $startTime;
-	printf("%d: %f [sec]\n", $count, $dt);
+	printf("%5d\n\033[1A", $count);
 	if ($count==6000) {
+		$dt = microtime(true) - $startTime;
+		printf("Sent the last ack: %f [sec]\n", $dt);
 		$ch->close();
 		$conn->close();
 		exit(0);
@@ -101,13 +103,17 @@ function processRequest($req) {
 
 function onReceive(AMQPMessage $msg) {
 	global $startTime, $received;
-	if ($startTime == 0) $startTime = microtime(true);
+	if ($startTime == 0) {
+		printf("Received the first message\n");
+		$startTime = microtime(true);
+	}
 	/** @var RrdRequest $req */
 	$req = json_decode($msg->body);
 	$req->delivery_tag = $msg->delivery_info['delivery_tag'];
 	$props = $msg->get_properties();
 	$req->message_id = $props['message_id'];
-	printf("%d: Received a message id=%s\n", ++$received, $req->message_id);
+	$received++;
+	// printf("%d: Received a message id=%s\n", $received, $req->message_id);
 	processRequest($req);
 }
 
