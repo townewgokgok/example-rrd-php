@@ -91,7 +91,7 @@ function processRequest($req) {
 	// printf("%d: Sending ack id=%s\n", $count, $req->message_id);
 	$ch->basic_ack($req->delivery_tag);
 
-	printf("%5d\n\033[1A", $count);
+	printf("%d / 6000\n\033[1A", $count);
 	if ($count==6000) {
 		$dt = microtime(true) - $startTime;
 		printf("Sent the last ack: %f [sec]\n", $dt);
